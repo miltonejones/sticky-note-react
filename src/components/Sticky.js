@@ -58,7 +58,7 @@ const EditButton = styled(IconButton)(({ theme, left, top, active}) => ({
 }));
 
 
-const SeverityButton = styled(Box)(({ theme, color, active }) => ({
+const ColorButton = styled(Box)(({ theme, color, active }) => ({
   width: 20,
   height: 20,
   borderRadius: 4,
@@ -133,9 +133,13 @@ export const Sticky = ({
 
   React.useEffect(() => { 
     !!ref.current && dragElement(ref.current, handlePositionChange, () => { 
-      onDelete({ ID })
+      if (window.confirm(`Delete note "${children}"?`)) {
+        onDelete({ ID })
+        return true;
+      }
+      return false;
     });
-  }, [ID, handlePositionChange, onDelete]);
+  }, [ID, handlePositionChange, children, onDelete]);
 
   const Icon = editing ? Close : Edit;
   const className = editing || selectMode ? 'editing' : 'read-only'
@@ -160,7 +164,7 @@ export const Sticky = ({
           <Stack sx={{mt: 1}} direction="row">
             <Typography variant="caption">severity: </Typography>
             {['info', 'warning', 'error', 'success']
-              .map(hue => <SeverityButton onClick={() => handleColorChange(hue)} color={hue} key={hue} active={hue === severity} />)}
+              .map(hue => <ColorButton onClick={() => handleColorChange(hue)} color={hue} key={hue} active={hue === severity} />)}
               <Box sx={{ flexGrow: 1 }}/> 
              
               <Typography sx={{ ml: 2 }} variant="caption">{children.length} chars. </Typography>
@@ -181,22 +185,23 @@ export const useSticky = (dynamoStorageKey) => {
 
 
   const [editPanelOpen, setEditPanelOpen] = React.useState(false);
+
+  const [selectedNotes, setSelectedNotes] = React.useState([]);
   const [notes, setNotes] = React.useState([]);
   const [dirty, setDirty] = React.useState([]);
-  const [selectedNotes, setSelectedNotes] = React.useState([]);
   const [selectMode, setSelectMode] = React.useState(false);
   const [cursor, setCursor] = React.useState('pointer');
 
   const handleChange = (event) => {
     setSelectMode(event.target.checked);
-    setSelectedNotes([])
+    setSelectedNotes([]);
   };
 
   const selectNote = React.useCallback(id => {
     setSelectedNotes( items => items.find(i => i === id) 
       ? items.filter(i => i !== id)
       : items.concat(id))
-  }, [])
+  }, []);
 
   const addNote = React.useCallback(async () => {
     setNotes(noteList => noteList.concat({
@@ -233,7 +238,10 @@ export const useSticky = (dynamoStorageKey) => {
     const filterNotes = noteItem => selectedNotes.find(noteId => noteId === noteItem.ID);
     const chosenNotes = notes.filter(filterNotes);
     const firstCoord = chosenNotes[0][direction]; 
-    const alignedNotes = notes.map(noteItem => ({...noteItem, [direction]: filterNotes(noteItem) ? firstCoord : noteItem[direction]})) ;
+    const alignedNotes = notes.map(noteItem => ({
+      ...noteItem, 
+      [direction]: filterNotes(noteItem) ? firstCoord : noteItem[direction]
+    })) ;
     setNotes(alignedNotes) 
     setDirty(true);
     setSelectedNotes([]);
@@ -241,11 +249,11 @@ export const useSticky = (dynamoStorageKey) => {
   }, [notes, selectedNotes]);
 
   const deleteNote = React.useCallback(async (note) => {  
-    const updatedNotes = notes.filter(n => n.ID !== note.ID);
+    const filteredNotes = notes.filter(n => n.ID !== note.ID);
     setNotes([])
     setCursor('progress');
-    await store.setItem(dynamoStorageKey, updatedNotes);
-    await resetNotes()
+    await store.setItem(dynamoStorageKey, filteredNotes);
+    await resetNotes();
     setCursor('default');
     setEditPanelOpen(true);
   }, [notes, store, resetNotes, dynamoStorageKey]);
@@ -261,21 +269,18 @@ export const useSticky = (dynamoStorageKey) => {
     cursor,
     deleteNote,
     dirty,
-    editPanelOpen,
     handleChange,
     notes,
     resetNotes,
     selectMode,
     selectNote,
     selectedNotes,
+    editPanelOpen,
     setEditPanelOpen,
     setNote
-  }
+  };
 
-}
-
-
-
+};
 
 
 /**
@@ -283,7 +288,7 @@ export const useSticky = (dynamoStorageKey) => {
  * @param {HTMLElement} elmnt - element to drag 
  */
 function dragElement(elmnt, setInfo, onDelete) {
-  var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+  var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0, lastX = 0, lastY = 0;
   elmnt.onmousedown = dragMouseDown;
 
   function dragMouseDown(e) {
@@ -295,6 +300,8 @@ function dragElement(elmnt, setInfo, onDelete) {
     // get the mouse cursor position at startup:
     pos3 = e.clientX;
     pos4 = e.clientY;
+    lastX = elmnt.offsetLeft;
+    lastY = elmnt.offsetTop;
     document.onmouseup = closeDragElement;
     // call a function whenever the cursor moves:
     document.onmousemove = elementDrag;
@@ -317,11 +324,14 @@ function dragElement(elmnt, setInfo, onDelete) {
     elmnt.style.left = x + "px";
   }
 
-  function closeDragElement() { 
+  function closeDragElement() {  
     // stop moving when mouse button is released:
     if (elmnt.offsetLeft < 0 && !!onDelete) {
-      if (window.confirm('Delete note?')) onDelete()
-      else  elmnt.style.left = "50px";
+      if (!onDelete()) {
+        // if delete action is cancelled, return note to start position
+        elmnt.style.top = lastY + "px";
+        elmnt.style.left = lastX + "px";
+      }
     }
     document.onmouseup = null;
     document.onmousemove = null;

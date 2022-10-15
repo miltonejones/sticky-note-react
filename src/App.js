@@ -15,7 +15,6 @@ import {
 } from '@mui/material';
 
 import { Edit, Close, Comment, Add, Undo, Save, AlignHorizontalLeft, AlignVerticalTop, KeyboardArrowDown } from '@mui/icons-material';
-import './App.css';
  
 
 const AlignButton = ({ onChange }) => {
@@ -60,48 +59,74 @@ const SaveButton = styled(IconButton)(({ theme }) => ({
     backgroundColor: theme.palette.warning.dark ,
   }
 }))
-
-
+ 
 
 function App() { 
   const sticky = useSticky('sticky-notes');
   const Icon = sticky.editPanelOpen ? Close : Edit;
 
   return (
-   <>
-    <Box className="App" style={{cursor: sticky.cursor}}>
+    // outer wrapper
+   <Box sx={{height: '100vh', backgroundColor: theme => theme.palette.primary.dark}}>
 
-<Stack direction="row" sx={{p: 2, whiteSpace: 'nowrap'}}>
-  <Box sx={{ flexGrow: 1 }} />
-  <Collapse orientation="horizontal" in={sticky.editPanelOpen}> 
-    <Button size="small" disabled={!sticky.dirty} onClick={sticky.commitNotes} sx={{mr: 1}} variant="contained">save changes <Save sx={{ ml: 1 }} /></Button>
-    <Button size="small" disabled={!sticky.dirty} onClick={sticky.resetNotes} variant="outlined" sx={{mr: 1}}>undo all <Undo sx={{ ml: 1 }} /></Button> 
-    <FormControlLabel control={<Switch checked={sticky.selectMode} sx={{mr: 1}} onChange={sticky.handleChange} />} label="Select Mode" />
-    {sticky.selectMode && sticky.selectedNotes.length > 1 &&  <AlignButton onChange={direction => sticky.alignNotes(direction)}  />}
-  </Collapse>
-  <IconButton sx={{mr: 2}} onClick={() => sticky.setEditPanelOpen(!sticky.editPanelOpen)}>
-    <Icon />
-  </IconButton>
-  <SaveButton onClick={sticky.addNote}>
-    <Add />
-  </SaveButton>
-</Stack>
+    {/* inner surface */}
+    <Box sx={{ 
+        cursor: sticky.cursor, 
+        backgroundColor: 'white',
+        height: 'calc(100vh - 40px)' }}>
 
-{sticky.notes.map((note, i) => <Sticky 
-                                {...note} 
-                                key={i} 
-                                selected={sticky.selectedNotes.find(f => f === note.ID)}
-                                onSelect={sticky.selectNote} 
-                                onDelete={sticky.deleteNote} 
-                                selectMode={sticky.selectMode} 
-                                onChange={sticky.setNote} />)}
+      {/* control toolbar */}
+      <Stack direction="row" sx={{p: 2, whiteSpace: 'nowrap'}}>
 
-</Box>
+        {/* spacer */}
+        <Box sx={{ flexGrow: 1 }} />
+
+        {/* collapsible button list for advanced features */}
+        <Collapse orientation="horizontal" in={sticky.editPanelOpen}> 
+
+          {/* commit dirty changes to db */}
+          <Button size="small" disabled={!sticky.dirty} onClick={sticky.commitNotes} sx={{mr: 1}} variant="contained">save changes <Save sx={{ ml: 1 }} /></Button>
+
+          {/* undo button reloads list from db */}
+          <Button size="small" disabled={!sticky.dirty} onClick={sticky.resetNotes} variant="outlined" sx={{mr: 1}}>undo all <Undo sx={{ ml: 1 }} /></Button> 
+
+          {/* note alignment controls */}
+          <FormControlLabel control={<Switch checked={sticky.selectMode} sx={{mr: 1}} onChange={sticky.handleChange} />} label="Select Mode" />
+          {sticky.selectMode && sticky.selectedNotes.length > 1 &&  <AlignButton onChange={direction => sticky.alignNotes(direction)}  />}
+        </Collapse>
+
+        {/* edit/close button outside the collapse  */}
+        <IconButton sx={{mr: 2}} onClick={() => sticky.setEditPanelOpen(!sticky.editPanelOpen)}>
+          <Icon />
+        </IconButton>
+
+        {/* custom button for save action  */}
+        <SaveButton onClick={sticky.addNote}>
+          <Add />
+        </SaveButton>
+      </Stack>
+
+      {/* render note list  */}
+      {sticky.notes.map((note, i) => (
+        <Sticky 
+          {...note} 
+          key={i} 
+          selected={sticky.selectedNotes.find(f => f === note.ID)}
+          onSelect={sticky.selectNote} 
+          onDelete={sticky.deleteNote} 
+          selectMode={sticky.selectMode} 
+          onChange={sticky.setNote} />))}
+    </Box>
+
+    {/* footer  */}
     <Stack direction="row" sx={{color: 'white', p: 1, alignItems: 'center', justifyContent: "flex-end"}}>
       <Comment />
-      <Typography variant="caption">Component StickyNotes PoC</Typography>
+      <Typography variant="caption">
+        Component StickyNotes PoC.{" "}
+        Check out <a target="_blank" rel="noreferrer" style={{color: "yellow"}} href="https://github.com/miltonejones/sticky-note-react">the repo</a>.
+      </Typography>
     </Stack>
-   </>
+   </Box>
   );
 }
 
