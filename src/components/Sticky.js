@@ -1,5 +1,5 @@
 import React from 'react'; 
-
+import useDynamoStorage from '../data/DynamoStorage';
 import { 
   IconButton,
   Stack,
@@ -12,22 +12,35 @@ import {
 
 import { Edit, Close } from '@mui/icons-material';
 
+const uniqueId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
 
-const Note = styled(Card)(({ theme, editing, severity, saved }) => ({
-  position: 'absolute',
-  width: 420,
-  minHeight: 32,
-  opacity: saved ? 1 : 0.7,
-  cursor: editing ? 'default' : 'move', 
-  color: theme.palette[severity].dark,
-  borderLeft: 'solid 8px ' + (saved ? theme.palette[severity].main : 'gray'),   
-  zIndex: editing ? 10 : 9,
-  padding: theme.spacing(1),
-  '&:hover': {
-    outlineOffset: 1,
-    outline: (saved ? 'solid' : 'dotted') + ' 2px ' + theme.palette[severity].main, 
+
+const Note = styled(Card)(({ theme, editing, severity, selected, selectMode }) => {
+  const style = {
+    position: 'absolute',
+    width: 420,
+    minHeight: 32, 
+    cursor: editing ? 'default' : 'move', 
+    color: theme.palette[severity].dark,
+    borderLeft: 'solid 8px ' + theme.palette[severity].main,
+    zIndex: editing ? 10 : 9,
+    padding: theme.spacing(1),
+    '&:hover': {
+      outlineOffset: 1,
+      outline:  'solid 2px ' + theme.palette[severity].main, 
+    }
+  };
+  if (selectMode) {
+    Object.assign(style, {
+      color: 'gray',
+      borderLeft: 'solid 8px gray',
+      outline: (selected ? 'solid' : 'dotted') + ' 2px gray',
+      '&:hover': {}
+    })
   }
-}));
+  return style;
+});
+
 
 const EditButton = styled(IconButton)(({ theme, left, top, active}) => ({
   opacity: active ? 0.2 : 0,
@@ -40,35 +53,56 @@ const EditButton = styled(IconButton)(({ theme, left, top, active}) => ({
   }
 }));
 
+
 const SeverityButton = styled(Box)(({ theme, color, active }) => ({
   width: 20,
   height: 20,
   borderRadius: 4,
+  cursor: 'pointer',
   marginLeft: theme.spacing(1), 
   backgroundColor: theme.palette[color].main,
   outlineOffset: 1,
   outline: active ? ('solid 2px ' + theme.palette[color].main) : 'none'
 }));
 
-export const Sticky = ({ top, left, children, severity='info', onChange, onDelete, ID, ...rest }) => {
+
+export const Sticky = ({ 
+
+    // note props
+    ID,
+    top, 
+    left, 
+    children, 
+    severity='info', 
+    
+    // control methods/props
+    selected,
+    selectMode,
+    onSelect,
+    onChange, 
+    onDelete,  
+    
+    // added for future props
+    ...rest 
+  }) => {
   const ref = React.useRef(null);
   const [info, setInfo] = React.useState({
     ID,
-    editing: false, 
-    text: children,
-    color: severity
+    editing: false ,
+    active: false
   });
 
-  const { text, editing, color, active } = info;
+  const { editing, active } = info;
 
   const currentObject = React.useCallback(() => ({
     ...rest,
     ID, 
-    children: text,
-    severity: color,
+    children,
+    severity,
     top,
     left
-  }), [ ID, color, text, rest, top, left])
+  }), [ ID, children, severity, rest, top, left])
+
 
   const handlePositionChange = React.useCallback((coordX, coordY) => { 
     onChange({
@@ -78,64 +112,161 @@ export const Sticky = ({ top, left, children, severity='info', onChange, onDelet
     })
   }, [ onChange, currentObject]);
 
-
-  React.useEffect(() => {
-    !text.length && !editing && setInfo(s => ({...s, editing: !editing}));
-    !!ref.current && dragElement(ref.current, handlePositionChange, () => { 
-      onDelete({ ID })
-    });
-  }, [ID, handlePositionChange, onDelete, editing, text]);
-
-  const handleTextChange = (e) => {
-    setInfo(s => ({...s, text: e.target.value}))
+  const handleTextChange = (e) => { 
     onChange({
       ...currentObject(),
       children: e.target.value, 
     })
   }
 
-  const handleColorChange = (hue) => {
-    setInfo(s => ({...s, color: hue}))
+  const handleColorChange = (hue) => { 
     onChange({
       ...currentObject(),
       severity: hue
     })
   }
 
+
+  React.useEffect(() => { 
+    !!ref.current && dragElement(ref.current, handlePositionChange, () => { 
+      onDelete({ ID })
+    });
+  }, [ID, handlePositionChange, onDelete]);
+
   const Icon = editing ? Close : Edit;
-  const className = editing ? 'editing' : 'read-only'
+  const className = editing || selectMode ? 'editing' : 'read-only'
 
   return <>
-  <Note className={className} 
-      saved={rest.saved}
+    <Note className={className}  
       onMouseEnter={() =>  setInfo(s => ({...s, active: true}))}
       onMouseLeave={() =>  setInfo(s => ({...s, active: false}))}
+      onClick={() => selectMode && !!onSelect && onSelect(ID)}
       variant="outlined" 
       id="my-postit" 
+      selectMode={selectMode}
+      selected={selected}
       editing={editing}  
       style={{ top, left }} 
       ref={ref} 
-      severity={color}>{editing 
+      severity={severity}>{editing 
       ? <Stack>
-          <TextField value={text} fullWidth size="small" autoFocus 
+          <TextField value={children} fullWidth size="small" autoFocus 
             multiline rows={4} onChange={handleTextChange} label="Edit note" placeholder="Enter note text"/>
           <Stack sx={{mt: 1}} direction="row">
             <Typography variant="caption">severity: </Typography>
             {['info', 'warning', 'error', 'success']
-              .map(hue => <SeverityButton onClick={() => handleColorChange(hue)} color={hue} key={hue} active={hue === color} />)}
+              .map(hue => <SeverityButton onClick={() => handleColorChange(hue)} color={hue} key={hue} active={hue === severity} />)}
               <Box sx={{ flexGrow: 1 }}/>
-              <Typography sx={{ ml: 2 }} variant="caption">{text.length} chars. </Typography>
+              <Typography sx={{ ml: 2 }} variant="caption">{children.length} chars. </Typography>
           </Stack>
         </Stack> 
-      : <Typography sx={{lineHeight: 1}} variant="caption">{text}</Typography>}</Note>
-  <EditButton active={active} onClick={() => setInfo(s => ({...s, editing: !editing}))} top={top} left={left}><Icon /></EditButton> 
+      : <Typography sx={{lineHeight: 1}} variant="caption">{children}</Typography>}
+    </Note>
+    {!selectMode && <EditButton active={active} onClick={() => setInfo(s => ({...s, editing: !editing}))} top={top} left={left}><Icon /></EditButton>} 
  
   </>
 }
 
 
 
+export const useSticky = () => {
 
+  const store = useDynamoStorage();
+
+
+  const [editPanelOpen, setEditPanelOpen] = React.useState(false);
+  const [notes, setNotes] = React.useState([]);
+  const [dirty, setDirty] = React.useState([]);
+  const [selectedNotes, setSelectedNotes] = React.useState([]);
+  const [selectMode, setSelectMode] = React.useState(false);
+  const [cursor, setCursor] = React.useState('pointer');
+
+  const handleChange = (event) => {
+    setSelectMode(event.target.checked);
+    setSelectedNotes([])
+  };
+
+  const selectNote = React.useCallback(id => {
+    setSelectedNotes( items => items.find(i => i === id) 
+      ? items.filter(i => i !== id)
+      : items.concat(id))
+  }, [])
+
+  const addNote = React.useCallback(async () => {
+    setNotes(f => f.concat({
+      ID: uniqueId(),
+      children: 'New Note',
+      severity: 'info',
+      top: 200,
+      left: 400
+    }));
+  }, []);
+
+  const resetNotes = React.useCallback(async () => {
+    setCursor('progress');
+    const dbNotes = await store.getItem('sticky-notes');
+    setNotes(dbNotes);
+    setDirty(false);
+    setCursor('default');
+  }, [store]);
+
+  const commitNotes = React.useCallback(async () => {
+    setCursor('progress');
+    await store.setItem('sticky-notes', notes.map(note => ({...note, saved: new Date().toString()})));
+    setDirty(false);
+    setCursor('default');
+  }, [store, notes])
+
+  const setNote = React.useCallback(async (note) => { 
+    setNotes(b => b.map(n => n.ID === note.ID ? note : n) ) 
+    setDirty(true);
+    setEditPanelOpen(true);
+  }, []);
+
+  const alignNotes = React.useCallback(async () => { 
+    const filterNotes = noteItem => selectedNotes.find(noteId => noteId === noteItem.ID);
+    const chosenNotes = notes.filter(filterNotes);
+    const firstLeft = chosenNotes[0].left; 
+    const fixed = notes.map(noteItem => ({...noteItem, left: filterNotes(noteItem) ? firstLeft : noteItem.left})) ;
+    setNotes(fixed) 
+    setDirty(true);
+    setSelectedNotes([]);
+    setSelectMode(false)
+  }, [notes, selectedNotes]);
+
+  const deleteNote = React.useCallback(async (note) => {  
+    const updatedNotes = notes.filter(n => n.ID !== note.ID);
+    setNotes([])
+    setCursor('progress');
+    await store.setItem('sticky-notes', updatedNotes);
+    await resetNotes()
+    setCursor('default');
+    setEditPanelOpen(true);
+  }, [notes, store, resetNotes]);
+
+  React.useEffect(() => {
+    !notes.length && resetNotes();
+  }, [resetNotes, notes]);
+
+  return {
+    addNote,
+    alignNotes,
+    commitNotes,
+    cursor,
+    deleteNote,
+    dirty,
+    editPanelOpen,
+    handleChange,
+    notes,
+    resetNotes,
+    selectMode,
+    selectNote,
+    selectedNotes,
+    setEditPanelOpen,
+    setNote
+  }
+
+}
 
 
 
