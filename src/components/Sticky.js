@@ -1,11 +1,11 @@
 import React from 'react'; 
 import useDynamoStorage from '../data/DynamoStorage';
 import { 
+  Alert,
   IconButton,
   Stack,
   TextField,
-  Box, 
-  Card,
+  Box,  
   Typography,
   styled,
 } from '@mui/material';
@@ -15,8 +15,9 @@ import { Edit, Close } from '@mui/icons-material';
 const uniqueId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
 
 
-const Note = styled(Card)(({ theme, editing, severity, selected, selectMode }) => {
+const Note = styled(Alert)(({ theme, editing, severity, selected, selectMode }) => {
   const style = {
+    borderRadius: 0,
     position: 'absolute',
     width: 420,
     minHeight: 32, 
@@ -28,6 +29,9 @@ const Note = styled(Card)(({ theme, editing, severity, selected, selectMode }) =
     '&:hover': {
       outlineOffset: 1,
       outline:  'solid 2px ' + theme.palette[severity].main, 
+    },
+    '& .MuiAlert-message': {
+      width: '100%'
     }
   };
   if (selectMode) {
@@ -101,7 +105,7 @@ export const Sticky = ({
     severity,
     top,
     left
-  }), [ ID, children, severity, rest, top, left])
+  }), [ID, children, severity, rest, top, left])
 
 
   const handlePositionChange = React.useCallback((coordX, coordY) => { 
@@ -110,12 +114,12 @@ export const Sticky = ({
       top: coordY,
       left: coordX 
     })
-  }, [ onChange, currentObject]);
+  }, [onChange, currentObject]);
 
   const handleTextChange = (e) => { 
     onChange({
       ...currentObject(),
-      children: e.target.value, 
+      children: e.target.value.substr(0, 300), 
     })
   }
 
@@ -137,7 +141,8 @@ export const Sticky = ({
   const className = editing || selectMode ? 'editing' : 'read-only'
 
   return <>
-    <Note className={className}  
+    <Note 
+      className={className}  
       onMouseEnter={() =>  setInfo(s => ({...s, active: true}))}
       onMouseLeave={() =>  setInfo(s => ({...s, active: false}))}
       onClick={() => selectMode && !!onSelect && onSelect(ID)}
@@ -156,7 +161,8 @@ export const Sticky = ({
             <Typography variant="caption">severity: </Typography>
             {['info', 'warning', 'error', 'success']
               .map(hue => <SeverityButton onClick={() => handleColorChange(hue)} color={hue} key={hue} active={hue === severity} />)}
-              <Box sx={{ flexGrow: 1 }}/>
+              <Box sx={{ flexGrow: 1 }}/> 
+             
               <Typography sx={{ ml: 2 }} variant="caption">{children.length} chars. </Typography>
           </Stack>
         </Stack> 
@@ -169,7 +175,7 @@ export const Sticky = ({
 
 
 
-export const useSticky = () => {
+export const useSticky = (dynamoStorageKey) => {
 
   const store = useDynamoStorage();
 
@@ -193,7 +199,7 @@ export const useSticky = () => {
   }, [])
 
   const addNote = React.useCallback(async () => {
-    setNotes(f => f.concat({
+    setNotes(noteList => noteList.concat({
       ID: uniqueId(),
       children: 'New Note',
       severity: 'info',
@@ -204,18 +210,18 @@ export const useSticky = () => {
 
   const resetNotes = React.useCallback(async () => {
     setCursor('progress');
-    const dbNotes = await store.getItem('sticky-notes');
-    setNotes(dbNotes);
+    const noteResponse = await store.getItem(dynamoStorageKey);
+    setNotes(noteResponse);
     setDirty(false);
     setCursor('default');
-  }, [store]);
+  }, [store, dynamoStorageKey]);
 
   const commitNotes = React.useCallback(async () => {
     setCursor('progress');
-    await store.setItem('sticky-notes', notes.map(note => ({...note, saved: new Date().toString()})));
+    await store.setItem(dynamoStorageKey, notes.map(note => ({...note, saved: new Date().toString()})));
     setDirty(false);
     setCursor('default');
-  }, [store, notes])
+  }, [store, notes, dynamoStorageKey])
 
   const setNote = React.useCallback(async (note) => { 
     setNotes(b => b.map(n => n.ID === note.ID ? note : n) ) 
@@ -223,12 +229,12 @@ export const useSticky = () => {
     setEditPanelOpen(true);
   }, []);
 
-  const alignNotes = React.useCallback(async () => { 
+  const alignNotes = React.useCallback(async (direction) => { 
     const filterNotes = noteItem => selectedNotes.find(noteId => noteId === noteItem.ID);
     const chosenNotes = notes.filter(filterNotes);
-    const firstLeft = chosenNotes[0].left; 
-    const fixed = notes.map(noteItem => ({...noteItem, left: filterNotes(noteItem) ? firstLeft : noteItem.left})) ;
-    setNotes(fixed) 
+    const firstCoord = chosenNotes[0][direction]; 
+    const alignedNotes = notes.map(noteItem => ({...noteItem, [direction]: filterNotes(noteItem) ? firstCoord : noteItem[direction]})) ;
+    setNotes(alignedNotes) 
     setDirty(true);
     setSelectedNotes([]);
     setSelectMode(false)
@@ -238,11 +244,11 @@ export const useSticky = () => {
     const updatedNotes = notes.filter(n => n.ID !== note.ID);
     setNotes([])
     setCursor('progress');
-    await store.setItem('sticky-notes', updatedNotes);
+    await store.setItem(dynamoStorageKey, updatedNotes);
     await resetNotes()
     setCursor('default');
     setEditPanelOpen(true);
-  }, [notes, store, resetNotes]);
+  }, [notes, store, resetNotes, dynamoStorageKey]);
 
   React.useEffect(() => {
     !notes.length && resetNotes();
