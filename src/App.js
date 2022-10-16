@@ -4,17 +4,24 @@ import {
   Button,  
   Box,
   Collapse,
-  IconButton,
-  FormControlLabel,
+  IconButton, 
   Menu,
   MenuItem,
   Stack,
-  styled,
-  Switch,
+  styled, 
   Typography
 } from '@mui/material';
 
-import { Edit, Close, Comment, Add, Undo, Save, AlignHorizontalLeft, AlignVerticalTop, KeyboardArrowDown } from '@mui/icons-material';
+import {   
+  Add, 
+  Undo, 
+  Save, 
+  AlignHorizontalLeft, 
+  AlignVerticalTop, 
+  KeyboardArrowDown, 
+  SelectAll,
+  SpeakerNotes,
+  SpeakerNotesOff } from '@mui/icons-material';
  
 
 const AlignButton = ({ onChange }) => {
@@ -62,11 +69,21 @@ const SaveButton = styled(IconButton)(({ theme }) => ({
   }
 }))
  
+const LitButton = styled(IconButton)(({ theme, active }) => ({
+  outline: active ? ('solid 1px ' + theme.palette.success.light) : 'none' ,  
+}))
+ 
 
 function App() { 
-  const [editPanelOpen, setEditPanelOpen] = React.useState(false);
-  const sticky = useSticky('sticky-notes');
-  const Icon = sticky.dirty || editPanelOpen ? Close : Edit;
+  const [showNotes, setShowNotes] = React.useState(true); 
+  const sticky = useSticky('sticky-notes'); 
+  const Icon = showNotes ? SpeakerNotesOff : SpeakerNotes;
+  const s = sticky.selectedNotes.length === 1 ? '' : 's'
+  const handleDelete = () => {
+    if (window.confirm(`Delete ${sticky.selectedNotes.length} note${s}?`)) {
+      sticky.deleteNote(sticky.selectedNotes)
+    }
+  }
 
   return (
     // outer wrapper
@@ -79,53 +96,59 @@ function App() {
         height: 'calc(100vh - 40px)' }}>
 
       {/* control toolbar */}
-      <Stack direction="row" sx={{p: 2, whiteSpace: 'nowrap'}}>
+      <Stack direction="row" sx={{p: 2, whiteSpace: 'nowrap', alignItems: 'center'}}>
 
         {/* spacer */}
         <Box sx={{ flexGrow: 1 }} />
 
         {/* collapsible button list for advanced features */}
-        <Collapse orientation="horizontal" in={sticky.dirty || editPanelOpen}> 
+        <Collapse orientation="horizontal" in={sticky.dirty}> 
 
           {/* commit dirty changes to db */}
-          <Button size="small" disabled={!sticky.dirty} onClick={sticky.commitNotes} sx={{mr: 1}} variant="contained">save changes <Save sx={{ ml: 1 }} /></Button>
+          <Button size="small" variant="contained" disabled={!sticky.dirty} onClick={sticky.commitNotes} sx={{mr: 1}}>save changes <Save sx={{ ml: 1 }} /></Button>
 
           {/* undo button reloads list from db */}
           <Button size="small" disabled={!sticky.dirty} onClick={sticky.resetNotes} variant="outlined" sx={{mr: 1}}>undo all <Undo sx={{ ml: 1 }} /></Button> 
+ 
+        </Collapse>
+        
+        <Collapse orientation="horizontal" in={sticky.selectMode && sticky.selectedNotes.length > 0}>
+          <Button onClick={handleDelete} size="small" variant="contained" sx={{mr: 1}} color="error">delete {sticky.selectedNotes.length} note{s}</Button>
+          {sticky.selectedNotes.length > 1 &&  <AlignButton onChange={direction => sticky.alignNotes(direction)}  />}
+        </Collapse>
+ 
+        <Collapse orientation="horizontal" in={showNotes}>
+          {/* custom button for save action  */}
+          <SaveButton onClick={sticky.addNote}>
+            <Add />
+          </SaveButton>
 
-          {/* note alignment controls */}
-          <FormControlLabel control={<Switch checked={sticky.selectMode} sx={{mr: 1}} onChange={sticky.handleChange} />} label="Select Mode" />
-          {sticky.selectMode && sticky.selectedNotes.length > 1 &&  <AlignButton onChange={direction => sticky.alignNotes(direction)}  />}
+          <LitButton active={sticky.selectMode} sx={{mr: 2}} onClick={() => sticky.handleChange({target: {checked: !sticky.selectMode}})}>
+            <SelectAll />
+          </LitButton> 
+
         </Collapse>
 
-        {/* edit/close button outside the collapse  */}
-        <IconButton sx={{mr: 2}} onClick={() => setEditPanelOpen(!editPanelOpen)}>
+        <LitButton active={showNotes} sx={{mr: 2}} onClick={() => setShowNotes(!showNotes)}>
           <Icon />
-        </IconButton>
+        </LitButton> 
 
-        {/* custom button for save action  */}
-        <SaveButton onClick={sticky.addNote}>
-          <Add />
-        </SaveButton>
       </Stack>
 
       {/* render note list  */}
-      {sticky.notes.map((note, i) => (
+      {showNotes && sticky.notes.map((note, i) => (
         <Sticky 
           key={i} 
-          {...note} 
-          selected={sticky.selectedNotes.find(f => f === note.ID)}
-          onSelect={sticky.selectNote} 
-          onDelete={sticky.deleteNote} 
-          selectMode={sticky.selectMode} 
-          onChange={sticky.setNote} />))}
+          {...note}  
+          {...sticky.stickyProps(note)} 
+        />))}
     </Box>
 
     {/* footer  */}
     <Stack direction="row" sx={{color: 'white', p: 1, alignItems: 'center', justifyContent: "flex-end"}}>
-      <Comment />
+      <SpeakerNotes sx={{mr: 1}} />
       <Typography variant="caption">
-        Component StickyNotes PoC.{" "}
+        <b>Component StickyNotes PoC</b>.{" "}
         Check out <a target="_blank" rel="noreferrer" style={{color: "yellow"}} href="https://github.com/miltonejones/sticky-note-react">the repo</a>.
       </Typography>
     </Stack>

@@ -69,6 +69,8 @@ const ColorButton = styled(Box)(({ theme, color, active }) => ({
 }));
 
 const NoteContent = ({ editing, children, severity, handleTextChange, handleColorChange }) => {
+
+  // show note edit form when editing
   if (editing) {
     return (
       <Stack>
@@ -91,6 +93,8 @@ const NoteContent = ({ editing, children, severity, handleTextChange, handleColo
       </Stack> 
     )
   }
+
+  // note content 
   return <Typography sx={{lineHeight: 1}} variant="caption">{children}</Typography> 
 }
 
@@ -143,7 +147,7 @@ export const Sticky = ({
 
   const handleDelete = React.useCallback(() => {
     if (window.confirm(`Delete note "${children}"?`)) {
-      onDelete({ ID })
+      onDelete([ ID ]);
       return true;
     }
     return false;
@@ -231,8 +235,8 @@ export const useSticky = (dynamoStorageKey) => {
   };
 
   const selectNote = React.useCallback(id => {
-    setSelectedNotes( items => items.find(i => i === id) 
-      ? items.filter(i => i !== id)
+    setSelectedNotes(items => items.find(item => item === id) 
+      ? items.filter(item => item !== id)
       : items.concat(id))
   }, []);
 
@@ -262,29 +266,38 @@ export const useSticky = (dynamoStorageKey) => {
   }, [store, notes, dynamoStorageKey]);
 
   const setNote = React.useCallback(async (note) => { 
-    setNotes(b => b.map(n => n.ID === note.ID ? note : n) ) 
+    setNotes(noteList => noteList.map(noteItem => noteItem.ID === note.ID ? note : noteItem) ) 
     setDirty(true); 
   }, []);
 
-  const alignNotes = React.useCallback(async (direction) => { 
-    const filterNotes = noteItem => selectedNotes.find(noteId => noteId === noteItem.ID);
-    const chosenNotes = notes.filter(filterNotes);
-    const firstCoord = chosenNotes[0][direction]; 
-    const alignedNotes = notes.map(noteItem => ({
+  const alignNotes = React.useCallback(async (direction) => {  
+    const filterNotes = noteItem => selectedNotes.find(noteId => noteId === noteItem.ID); 
+    const primaryNote = notes.find(noteItem => noteItem.ID === selectedNotes[0]); 
+    const alignedList = notes.map(noteItem => ({
       ...noteItem, 
-      [direction]: filterNotes(noteItem) ? firstCoord : noteItem[direction]
+      [direction]: filterNotes(noteItem) ? primaryNote[direction] : noteItem[direction]
     })) ;
-    setNotes(alignedNotes) 
+    setNotes(alignedList) 
     setDirty(true);
     setSelectedNotes([]);
-    setSelectMode(false)
+    setSelectMode(false);
   }, [notes, selectedNotes]);
 
-  const deleteNote = React.useCallback(async (note) => {  
-    const filteredNotes = notes.filter(n => n.ID !== note.ID); 
-    setNotes(filteredNotes)  
+  const deleteNote = React.useCallback(async (noteIds) => {  
+    const filteredNotes = notes.filter(noteItem => !noteIds.find(noteId => noteItem.ID === noteId)); 
+    setNotes(filteredNotes);
+    setSelectedNotes([]);
+    setSelectMode(false);
     setDirty(true); 
   }, [ notes ]);
+ 
+  const stickyProps = (note) => ({
+    selected: selectedNotes.find(f => f === note.ID),
+    onSelect: selectNote,
+    onDelete: deleteNote,
+    onChange: setNote,
+    selectMode,
+  })
 
   React.useEffect(() => {
     !notes.length && resetNotes();
@@ -303,7 +316,8 @@ export const useSticky = (dynamoStorageKey) => {
     selectMode,
     selectNote,
     selectedNotes, 
-    setNote
+    setNote,
+    stickyProps
   };
 
 };
