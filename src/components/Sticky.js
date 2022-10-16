@@ -44,6 +44,7 @@ const Note = styled(Alert)(({ theme, editing, severity, selected, selectMode, vi
       '&:hover': {}
     })
   }
+
   if (editing || !viewports.length) {
     return style;
   }
@@ -54,10 +55,8 @@ const Note = styled(Alert)(({ theme, editing, severity, selected, selectMode, vi
         display: viewports.find(view => view === size) ? 'flex' : 'none'
       },
     })
-  })
-
-  console.log ({ style })
-
+  }) 
+  
   return style;
   
 });
@@ -92,7 +91,7 @@ const ViewPortButton = styled(Typography)(({ theme, color, active }) => ({
   padding: theme.spacing(0, 0.5),
   outlineOffset: 1,
   color: active ? theme.palette[color].main : 'gray',
-  outline: active ? ('solid 2px ' + theme.palette[color].main) : 'solid 1px gray',
+  outline: active ? ('solid 1px ' + theme.palette[color].main) : 'none',
   lineHeight: 1,
   display:'flex',
   alignItems: 'center'
