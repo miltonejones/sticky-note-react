@@ -35,6 +35,8 @@ const AlignButton = ({ onChange }) => {
       sx={{ mr: 1 }}
       endIcon={<KeyboardArrowDown />}
       >align</Button>
+
+  {/* alignment menu  */}
   <Menu 
     anchorEl={anchorEl}
     open={open}
@@ -62,12 +64,13 @@ const SaveButton = styled(IconButton)(({ theme }) => ({
  
 
 function App() { 
+  const [editPanelOpen, setEditPanelOpen] = React.useState(false);
   const sticky = useSticky('sticky-notes');
-  const Icon = sticky.editPanelOpen ? Close : Edit;
+  const Icon = sticky.dirty || editPanelOpen ? Close : Edit;
 
   return (
     // outer wrapper
-   <Box sx={{height: '100vh', backgroundColor: theme => theme.palette.primary.dark}}>
+   <Box sx={{ height: '100vh', backgroundColor: theme => theme.palette.primary.dark }}>
 
     {/* inner surface */}
     <Box sx={{ 
@@ -82,7 +85,7 @@ function App() {
         <Box sx={{ flexGrow: 1 }} />
 
         {/* collapsible button list for advanced features */}
-        <Collapse orientation="horizontal" in={sticky.editPanelOpen}> 
+        <Collapse orientation="horizontal" in={sticky.dirty || editPanelOpen}> 
 
           {/* commit dirty changes to db */}
           <Button size="small" disabled={!sticky.dirty} onClick={sticky.commitNotes} sx={{mr: 1}} variant="contained">save changes <Save sx={{ ml: 1 }} /></Button>
@@ -96,7 +99,7 @@ function App() {
         </Collapse>
 
         {/* edit/close button outside the collapse  */}
-        <IconButton sx={{mr: 2}} onClick={() => sticky.setEditPanelOpen(!sticky.editPanelOpen)}>
+        <IconButton sx={{mr: 2}} onClick={() => setEditPanelOpen(!editPanelOpen)}>
           <Icon />
         </IconButton>
 
@@ -109,8 +112,8 @@ function App() {
       {/* render note list  */}
       {sticky.notes.map((note, i) => (
         <Sticky 
-          {...note} 
           key={i} 
+          {...note} 
           selected={sticky.selectedNotes.find(f => f === note.ID)}
           onSelect={sticky.selectNote} 
           onDelete={sticky.deleteNote} 
