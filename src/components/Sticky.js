@@ -14,7 +14,7 @@ import { Edit, Close } from '@mui/icons-material';
 
 const uniqueId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
 
-const Note = styled(Alert)(({ theme, editing, severity, selected, selectMode }) => {
+const Note = styled(Alert)(({ theme, editing, severity, selected, selectMode, viewports = [] }) => {
   const style = {
     borderRadius: 0,
     position: 'absolute',
@@ -39,11 +39,27 @@ const Note = styled(Alert)(({ theme, editing, severity, selected, selectMode }) 
     Object.assign(style, {
       color: 'gray',
       borderLeft: 'solid 8px gray',
+      outlineOffset: 1,
       outline: (selected ? 'solid' : 'dotted') + ' 2px gray',
       '&:hover': {}
     })
   }
+  if (editing || !viewports.length) {
+    return style;
+  }
+
+  ['sm', 'md', 'lg'].map(size => {
+    Object.assign (style, {
+      [theme.breakpoints.up(size)]: {
+        display: viewports.find(view => view === size) ? 'flex' : 'none'
+      },
+    })
+  })
+
+  console.log ({ style })
+
   return style;
+  
 });
 
 const EditButton = styled(IconButton)(({ theme, left, top, active, hidden }) => ({
@@ -68,7 +84,31 @@ const ColorButton = styled(Box)(({ theme, color, active }) => ({
   outline: active ? ('solid 2px ' + theme.palette[color].main) : 'none'
 }));
 
-const NoteContent = ({ editing, children, severity, handleTextChange, handleColorChange }) => {
+const ViewPortButton = styled(Typography)(({ theme, color, active }) => ({
+  width: 20,
+  height: 20,
+  borderRadius: 2,
+  marginLeft: theme.spacing(1),
+  padding: theme.spacing(0, 0.5),
+  outlineOffset: 1,
+  color: active ? theme.palette[color].main : 'gray',
+  outline: active ? ('solid 2px ' + theme.palette[color].main) : 'solid 1px gray',
+  lineHeight: 1,
+  display:'flex',
+  alignItems: 'center'
+}));
+
+
+
+const NoteContent = ({ 
+  editing, 
+  children, 
+  severity, 
+  viewports ,
+  handleTextChange, 
+  handleColorChange ,
+  handleViewPortChange
+}) => {
 
   // show note edit form when editing
   if (editing) {
@@ -81,13 +121,22 @@ const NoteContent = ({ editing, children, severity, handleTextChange, handleColo
 
         {/* note footer  */}
         <Stack sx={{mt: 1}} direction="row">
-          <Typography variant="caption">severity: </Typography>
+          <Typography variant="caption">color: </Typography>
 
           {['info', 'warning', 'error', 'success']
             .map(hue => <ColorButton color={hue} key={hue} active={hue === severity} onClick={() => handleColorChange(hue)} />)}
 
           <Box sx={{ flexGrow: 1 }}/> 
-        
+
+          <Typography variant="caption">views: </Typography>
+          {['sm','md','lg'].map(size => <ViewPortButton 
+          active={!viewports?.length || viewports.find(q => q === size)} 
+          key={size} 
+          variant="button" 
+          color={severity}
+          onClick={() => handleViewPortChange(size)
+          }>{size}</ViewPortButton>)}
+
           <Typography sx={{ ml: 2 }} variant="caption">{children.length} chars. </Typography>
         </Stack>
       </Stack> 
@@ -107,6 +156,7 @@ export const Sticky = ({
     left, 
     children, 
     severity='info', 
+    viewports=[],
     
     // control methods/props
     selected,
@@ -153,6 +203,28 @@ export const Sticky = ({
     return false;
   }, [onDelete, ID, children]);
 
+  const handleKeyUp = React.useCallback((keyCode, x,  y) => { 
+    const offset = 4;
+    if (selectMode) {
+      switch (keyCode) {
+        case 37:
+          handlePositionChange(x - offset, y);
+          break;
+        case 38:
+          handlePositionChange(x, y - offset);
+          break;
+        case 39:
+          handlePositionChange(x + offset, y);
+          break;
+        case 40:
+          handlePositionChange(x, y + offset);
+          break;
+        default:
+          // do nothing
+      }
+    }
+  }, [selectMode]);
+
   const handleTextChange = (e) => { 
     onChange({
       ...getCurrentObject(),
@@ -167,9 +239,18 @@ export const Sticky = ({
     })
   }
 
+  const handleViewPortChange = (viewport) => {
+    onChange({
+      ...getCurrentObject(),
+      viewports: viewports.find(view => view  === viewport)
+        ? viewports.filter(view => view !== viewport)
+        : viewports.concat(viewport)
+    })
+  }
+
 
   React.useEffect(() => { 
-    !!ref.current && attachDragEvent(ref.current, handlePositionChange, handleDelete);
+    !!ref.current && attachDragEvent(ref.current, handlePositionChange, handleDelete, handleKeyUp);
   }, [ handlePositionChange, handleDelete]);
 
   const Icon = editing ? Close : Edit;
@@ -183,6 +264,7 @@ export const Sticky = ({
     selected,
     editing,
     severity,
+    viewports,
     style: { top, left },
     onClick: () => selectMode && !!onSelect && onSelect(ID),
     onMouseEnter: () => !selectMode && setInfo(state => ({...state, active: true})),
@@ -192,8 +274,10 @@ export const Sticky = ({
   const contentProps = {
     editing,
     severity, 
+    viewports,
     handleTextChange, 
-    handleColorChange 
+    handleColorChange ,
+    handleViewPortChange
   };
 
   const buttonProps = {
@@ -206,7 +290,7 @@ export const Sticky = ({
   };
 
   return <>
-    <Note {...noteProps} ref={ref} >
+    <Note {...noteProps} ref={ref} > 
       <NoteContent {...contentProps}>{children}</NoteContent>
     </Note>
     <EditButton {...buttonProps}>
@@ -248,6 +332,7 @@ export const useSticky = (dynamoStorageKey) => {
       top: 200,
       left: 400
     }));
+    setDirty(true);
   }, []);
 
   const resetNotes = React.useCallback(async () => {
@@ -327,7 +412,7 @@ export const useSticky = (dynamoStorageKey) => {
  * adds drag event to an HTML element
  * @param {HTMLElement} elmnt - element to drag 
  */
-function attachDragEvent(elmnt, setInfo, onDelete) {
+function attachDragEvent(elmnt, setInfo, onDelete, onKeyUp) {
   var pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0, lastX = 0, lastY = 0;
   elmnt.onmousedown = dragMouseDown;
 
@@ -345,6 +430,13 @@ function attachDragEvent(elmnt, setInfo, onDelete) {
     document.onmouseup = closeDragElement;
     // call a function whenever the cursor moves:
     document.onmousemove = elementDrag;
+    document.onkeyup = keyUp;
+    
+  }
+
+  function keyUp(e) { 
+    console.log ({ e })
+    onKeyUp && onKeyUp(e.keyCode || e.which, elmnt.offsetLeft, elmnt.offsetTop);
   }
 
   function elementDrag(e) {
