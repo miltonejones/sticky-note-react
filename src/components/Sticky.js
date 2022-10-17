@@ -2,6 +2,7 @@ import React from 'react';
 import useDynamoStorage from '../data/DynamoStorage';
 import { 
   Alert,
+  Avatar,
   IconButton,
   Stack,
   TextField,
@@ -86,12 +87,16 @@ const ColorButton = styled(Box)(({ theme, color, active }) => ({
   outline: active ? ('solid 2px ' + theme.palette[color].main) : 'none'
 }));
 
-const ViewPortButton = styled(Typography)(({ theme, color, active }) => ({
+const ViewPortButton = styled(Avatar)(({ theme, color, active }) => ({
   width: 20,
   height: 20,
   borderRadius: 2,
+  fontSize: '0.7rem',
+  fontWeight: active ? 600 : 400,
+  textTransform: 'uppercase',
+  backgroundColor: 'white',
   marginLeft: theme.spacing(1),
-  padding: theme.spacing(0, 0.5),
+  padding: theme.spacing(0),
   outlineOffset: 1,
   color: active ? theme.palette[color].main : 'gray',
   outline: active ? ('solid 1px ' + theme.palette[color].main) : 'none',
