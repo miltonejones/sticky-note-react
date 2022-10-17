@@ -45,18 +45,21 @@ const Note = styled(Alert)(({ theme, editing, severity, selected, selectMode, vi
     })
   }
 
-  if (editing || !viewports.length) {
+  if (editing || !viewports.length || viewports.length === 2) {
     return style;
   }
 
-  ['sm', 'md', 'lg'].map(size => {
-    Object.assign (style, {
-      [theme.breakpoints.up(size)]: {
-        display: viewports.find(view => view === size) ? 'flex' : 'none'
-      },
-    })
-  }) 
-  
+  const size = viewports[0];
+  Object.assign (style, {
+    [theme.breakpoints.up('sm')]: {
+      display: size === 'sm' ? 'none' : 'flex'
+    },
+    [theme.breakpoints.down('sm')]: {
+      display: size === 'sm' ? 'flex' : 'none'
+    },
+  })
+
+ 
   return style;
   
 });
@@ -127,8 +130,8 @@ const NoteContent = ({
 
           <Box sx={{ flexGrow: 1 }}/> 
 
-          <Typography variant="caption">views: </Typography>
-          {['sm','md','lg'].map(size => <ViewPortButton 
+          <Typography variant="caption">breakpoints: </Typography>
+          {['sm','lg'].map(size => <ViewPortButton 
           active={!viewports?.length || viewports.find(q => q === size)} 
           key={size} 
           variant="button" 
