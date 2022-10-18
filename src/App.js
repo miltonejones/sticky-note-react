@@ -72,6 +72,15 @@ const SaveButton = styled(IconButton)(({ theme }) => ({
 const LitButton = styled(IconButton)(({ theme, active }) => ({
   outline: active ? ('solid 1px ' + theme.palette.success.light) : 'none' ,  
 }))
+
+const Text = styled(Button)(({ theme }) => ({
+  [theme.breakpoints.down('lg')]: {
+    paddingLeft: 0,
+    '& .MuiBox-root': {
+      display: 'none'
+    }
+  },
+}))
  
 
 function App() { 
@@ -105,10 +114,10 @@ function App() {
         <Collapse orientation="horizontal" in={sticky.dirty}> 
 
           {/* commit dirty changes to db */}
-          <Button size="small" variant="contained" disabled={!sticky.dirty} onClick={sticky.commitNotes} sx={{mr: 1}}>save changes <Save sx={{ ml: 1 }} /></Button>
+          <Text size="small" variant="contained" endIcon={<Save />} disabled={!sticky.dirty} onClick={sticky.commitNotes} sx={{mr: 1}}><Box>save changes</Box></Text>
 
           {/* undo button reloads list from db */}
-          <Button size="small" disabled={!sticky.dirty} onClick={sticky.resetNotes} variant="outlined" sx={{mr: 1}}>undo all <Undo sx={{ ml: 1 }} /></Button> 
+          <Text size="small" disabled={!sticky.dirty} endIcon={<Undo  />} onClick={sticky.resetNotes} variant="outlined" sx={{mr: 1}}><Box>undo all</Box> </Text> 
  
         </Collapse>
         

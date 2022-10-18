@@ -3,12 +3,15 @@ import useDynamoStorage from '../data/DynamoStorage';
 import { 
   Alert,
   Avatar,
+  Box,  
+  Button,
+  Collapse,
+  Divider,
   IconButton,
   Stack,
-  TextField,
-  Box,  
-  Typography,
   styled,
+  TextField,
+  Typography,
 } from '@mui/material';
 
 import { Edit, Close } from '@mui/icons-material';
@@ -60,21 +63,8 @@ const Note = styled(Alert)(({ theme, editing, severity, selected, selectMode, vi
     },
   })
 
- 
-  return style;
-  
-});
-
-const EditButton = styled(IconButton)(({ theme, left, top, active, hidden }) => ({
-  opacity: active && !hidden ? 0.2 : 0,
-  position: 'absolute',
-  left: left + 392,
-  top: top + 4,
-  zIndex: 12,
-  '&:hover': {
-    opacity: hidden ? 0 : 1,
-  }
-}));
+  return style;  
+}); 
 
 const ColorButton = styled(Box)(({ theme, color, active }) => ({
   width: 20,
@@ -105,7 +95,12 @@ const ViewPortButton = styled(Avatar)(({ theme, color, active }) => ({
   alignItems: 'center'
 }));
 
-
+const TextBox = styled(TextField)(() => ({
+  '& .MuiInputBase-input': {
+    fontSize: '0.8rem',
+    lineHeight: 1.4
+  }
+}))
 
 const NoteContent = ({ 
   editing, 
@@ -122,9 +117,9 @@ const NoteContent = ({
     return (
       <Stack>
       {/* note entry field  */}
-        <TextField value={children} size="small" fullWidth autoFocus 
+        <TextBox value={children} size="small" fullWidth autoFocus  color={severity}
           multiline rows={4} onChange={handleTextChange} label="Edit note" 
-          placeholder="Enter note text"/>
+          placeholder="Enter note text" />
 
         {/* note footer  */}
         <Stack sx={{mt: 1}} direction="row">
@@ -288,21 +283,22 @@ export const Sticky = ({
   };
 
   const buttonProps = {
-    hidden: selectMode, 
-    handleColorChange,
-    active,  
-    top,
-    left,
+    endIcon: <Icon />,
+    size: 'small', 
+    variant: 'contained',
+    color: editing ? 'error' : 'primary',   
     onClick: () => setInfo(state => ({...state, editing: !editing }))
   };
 
   return <>
     <Note {...noteProps} ref={ref} > 
       <NoteContent {...contentProps}>{children}</NoteContent>
+      <Collapse sx={{textAlign: 'right'}} in={active || editing}>
+        <Divider sx={{mt: 1, mb: 1}} />
+        <Button {...buttonProps}>{editing ? "close" : "edit"}   </Button>
+      </Collapse>
     </Note>
-    <EditButton {...buttonProps}>
-      <Icon />
-    </EditButton>
+    
   </>
 }
 
