@@ -6,39 +6,72 @@ import {
   Box,  
   Button,
   Collapse,
-  Divider,
-  IconButton,
+  Divider, 
   Stack,
   styled,
   TextField,
   Typography,
 } from '@mui/material';
 
-import { Edit, Close } from '@mui/icons-material';
+import { Edit, Close, PushPin } from '@mui/icons-material';
 
 const uniqueId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
 
-const Note = styled(Alert)(({ theme, editing, severity, selected, selectMode, viewports = [] }) => {
-  const style = {
-    borderRadius: 0,
+const Note = styled(Alert)(({ theme, active, editing, severity, selected, selectMode, viewports = [] }) => {
+  const style = { 
     position: 'absolute',
     backgroundColor: 'white',
     width: 420,
     minHeight: 32, 
-    cursor: editing ? 'default' : 'move', 
+    maxHeight: 200, 
+    cursor: editing || selectMode ? 'default' : 'grab', 
     color: theme.palette[severity].dark,
     borderLeft: 'solid 8px ' + theme.palette[severity].main,
     zIndex: editing ? 10 : 9,
     padding: theme.spacing(1),
+    transition: active ? '' : `
+      height 0.15s linear, 
+      width 0.15s linear, 
+      border-radius 0.1s ease-in, 
+      top 0.35s ease-out, 
+      left 0.35s ease-out
+      `,
+    '&.grabbing': {
+      cursor: 'grabbing'
+    },
     '&:hover': {
       outlineOffset: 1,
       outline:  'solid 2px ' + theme.palette[severity].main, 
       zIndex: 12,
     },
+    '& .MuiAlert-icon .MuiSvgIcon-root': {
+      transition: 'all 0.1s linear', 
+    },
+    '&.collapsed': {
+      backgroundColor: theme.palette[severity].light,
+      width: 32,
+      height: 32,
+      borderRadius: '50% 50% 50% 4px',
+      border: 'solid 2px ' + theme.palette[severity].main,
+      '& .MuiAlert-message': {
+        display: 'none'
+      },
+      '& .MuiAlert-icon': {
+        backgroundColor: 'white',
+        borderRadius: '50%',
+        margin: 0,
+        padding: 0, 
+        '& .MuiSvgIcon-root': { 
+          width: 32,
+          height: 32,
+        }
+      }
+    },
     '& .MuiAlert-message': {
       width: '100%'
     }
   };
+  
   if (selectMode) {
     Object.assign(style, {
       color: 'gray',
@@ -102,6 +135,13 @@ const TextBox = styled(TextField)(() => ({
   }
 }))
 
+// const RotateButton = styled(Button)(({ deg = 90 }) => ({
+//   '& .MuiButton-endIcon': {
+//     transition: 'transform 0.1s linear', 
+//     transform: `rotate(${deg}deg)`
+//   }
+// }))
+
 const NoteContent = ({ 
   editing, 
   children, 
@@ -156,11 +196,13 @@ export const Sticky = ({
     ID,
     top, 
     left, 
+    pinned,
     children, 
     severity='info', 
     viewports=[],
     
     // control methods/props
+    collapsed,
     selected,
     selectMode,
     onSelect,
@@ -174,7 +216,8 @@ export const Sticky = ({
   const [info, setInfo] = React.useState({
     ID,
     editing: false ,
-    active: false
+    active: false,
+    deg: 45,
   });
 
   const { editing, active } = info;
@@ -184,9 +227,10 @@ export const Sticky = ({
     ID, 
     children,
     severity,
+    pinned,
     top,
     left
-  }), [ID, children, severity, rest, top, left]);
+  }), [ID, children, severity, rest, top, left, pinned]);
 
 
   const handlePositionChange = React.useCallback((coordX, coordY) => { 
@@ -225,7 +269,7 @@ export const Sticky = ({
           // do nothing
       }
     }
-  }, [selectMode]);
+  }, [selectMode, handlePositionChange]);
 
   const handleTextChange = (e) => { 
     onChange({
@@ -252,19 +296,20 @@ export const Sticky = ({
 
 
   React.useEffect(() => { 
-    !!ref.current && attachDragEvent(ref.current, handlePositionChange, handleDelete, handleKeyUp);
-  }, [ handlePositionChange, handleDelete]);
+    !!ref.current &&  attachDragEvent(ref.current, handlePositionChange, handleDelete, handleKeyUp);
+  }, [ handlePositionChange, handleDelete, handleKeyUp, collapsed]);
 
   const Icon = editing ? Close : Edit;
-  const className = editing || selectMode ? 'editing' : 'read-only';
+  const className =  editing || selectMode ? 'editing' : 'read-only';
 
   const noteProps = {
     variant: 'outlined',
     id: `postit-${ID}`,
-    className,
+    className: collapsed && !active && !editing && !pinned && !selectMode ? 'collapsed' : className,
     selectMode,
     selected,
-    editing,
+    active,
+    editing, 
     severity,
     viewports,
     style: { top, left },
@@ -283,6 +328,7 @@ export const Sticky = ({
   };
 
   const buttonProps = {
+    sx: {ml: 1},
     endIcon: <Icon />,
     size: 'small', 
     variant: 'contained',
@@ -295,7 +341,14 @@ export const Sticky = ({
       <NoteContent {...contentProps}>{children}</NoteContent>
       <Collapse sx={{textAlign: 'right'}} in={active || editing}>
         <Divider sx={{mt: 1, mb: 1}} />
+        <Button size="small" variant={pinned ? 'outlined' : 'text'} onClick={() => onChange({
+            ...getCurrentObject(),
+            pinned: !pinned, 
+          }) } endIcon={<PushPin />}>{pinned ? 'unpin' : 'pin'}</Button>
         <Button {...buttonProps}>{editing ? "close" : "edit"}   </Button>
+        {/* {editing && <RotateButton deg={deg} 
+          onClick={() => setInfo(state => ({...state, deg: (deg + 45) % 360 }))}
+        endIcon={<ExpandMore />}></RotateButton>}  */}
       </Collapse>
     </Note>
     
@@ -312,7 +365,7 @@ export const useSticky = (dynamoStorageKey) => {
 
   const [selectedNotes, setSelectedNotes] = React.useState([]);
   const [notes, setNotes] = React.useState([]);
-  const [dirty, setDirty] = React.useState([]);
+  const [dirty, setDirty] = React.useState(false);
   const [selectMode, setSelectMode] = React.useState(false);
   const [cursor, setCursor] = React.useState('pointer');
 
@@ -430,6 +483,7 @@ function attachDragEvent(elmnt, setInfo, onDelete, onKeyUp) {
     pos4 = e.clientY;
     lastX = elmnt.offsetLeft;
     lastY = elmnt.offsetTop;
+    elmnt.classList.add("grabbing");
     document.onmouseup = closeDragElement;
     // call a function whenever the cursor moves:
     document.onmousemove = elementDrag;
@@ -468,6 +522,7 @@ function attachDragEvent(elmnt, setInfo, onDelete, onKeyUp) {
         elmnt.style.left = lastX + "px";
       }
     }
+    elmnt.classList.remove("grabbing");
     document.onmouseup = null;
     document.onmousemove = null;
   }

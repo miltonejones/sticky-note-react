@@ -14,6 +14,8 @@ import {
 
 import {   
   Add, 
+  UnfoldLess,
+  UnfoldMore,
   Undo, 
   Save, 
   AlignHorizontalLeft, 
@@ -85,14 +87,22 @@ const Text = styled(Button)(({ theme }) => ({
 
 function App() { 
   const [showNotes, setShowNotes] = React.useState(true); 
+  const [notesOff, setNotesOff] = React.useState(true); 
   const sticky = useSticky('sticky-notes'); 
   const Icon = showNotes ? SpeakerNotesOff : SpeakerNotes;
+  const Fold = !notesOff ? UnfoldLess : UnfoldMore;
   const s = sticky.selectedNotes.length === 1 ? '' : 's'
   const handleDelete = () => {
     if (window.confirm(`Delete ${sticky.selectedNotes.length} note${s}?`)) {
       sticky.deleteNote(sticky.selectedNotes)
     }
   }
+
+  const coordProp = note => ({
+    ...note,
+    left: showNotes ? note.left : -500,
+    top: showNotes ? note.top : '50vh',
+  })
 
   return (
     // outer wrapper
@@ -111,7 +121,7 @@ function App() {
         <Box sx={{ flexGrow: 1 }} />
 
         {/* collapsible button list for advanced features */}
-        <Collapse orientation="horizontal" in={sticky.dirty}> 
+        <Collapse orientation="horizontal" in={sticky.dirty && showNotes}> 
 
           {/* commit dirty changes to db */}
           <Text size="small" variant="contained" endIcon={<Save />} disabled={!sticky.dirty} onClick={sticky.commitNotes} sx={{mr: 1}}><Box>save changes</Box></Text>
@@ -136,6 +146,10 @@ function App() {
             <SelectAll />
           </LitButton> 
 
+          <LitButton active={!notesOff} sx={{mr: 2}} onClick={() => setNotesOff(!notesOff)}>
+            <Fold />
+          </LitButton>
+
         </Collapse>
 
         <LitButton active={showNotes} sx={{mr: 2}} onClick={() => setShowNotes(!showNotes)}>
@@ -145,11 +159,12 @@ function App() {
       </Stack>
 
       {/* render note list  */}
-      {showNotes && sticky.notes.map((note, i) => (
+      {sticky.notes.map((note, i) => (
         <Sticky 
           key={i} 
-          {...note}  
+          {...coordProp(note)}  
           {...sticky.stickyProps(note)} 
+          collapsed={notesOff}
         />))}
     </Box>
 
