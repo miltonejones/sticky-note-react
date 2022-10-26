@@ -17,28 +17,38 @@ import { Edit, Close, PushPin } from '@mui/icons-material';
 
 const uniqueId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
 
-const Note = styled(Alert)(({ theme, active, editing, severity, selected, selectMode, viewports = [] }) => {
+const Note = styled(Alert)(({ 
+  theme,
+  active, 
+  editing, 
+  filled,
+  severity, 
+  selected, 
+  selectMode, 
+  viewports = [] 
+}) => {  
   const style = { 
     position: 'absolute',
-    backgroundColor: 'white',
     width: 420,
     minHeight: 32, 
     maxHeight: 200, 
+    color:  filled ? theme.palette[severity].contrastText : theme.palette[severity].dark,
     cursor: editing || selectMode ? 'default' : 'grab', 
-    color: theme.palette[severity].dark,
     borderLeft: 'solid 8px ' + theme.palette[severity].main,
     zIndex: editing ? 10 : 9,
     padding: theme.spacing(1),
+    backgroundColor: filled ? theme.palette[severity].light : 'white',
+    borderRadius:filled ? theme.spacing(2, 2, 2, 0) : theme.spacing(0, 0.5, 0.5, 0), 
     transition: active ? '' : `
       height 0.15s linear, 
       width 0.15s linear, 
       border-radius 0.1s ease-in, 
       top 0.35s ease-out, 
       left 0.35s ease-out
-      `,
+    `,
     '&.grabbing': {
       cursor: 'grabbing'
-    },
+    }, 
     '&:hover': {
       outlineOffset: 1,
       outline:  'solid 2px ' + theme.palette[severity].main, 
@@ -46,11 +56,13 @@ const Note = styled(Alert)(({ theme, active, editing, severity, selected, select
     },
     '& .MuiAlert-icon .MuiSvgIcon-root': {
       transition: 'all 0.1s linear', 
+      backgroundColor: 'white',
+      borderRadius: '50%',
     },
     '&.collapsed': {
-      backgroundColor: theme.palette[severity].light,
       width: 32,
       height: 32,
+      backgroundColor: theme.palette[severity].light,
       borderRadius: '50% 50% 50% 4px',
       border: 'solid 2px ' + theme.palette[severity].main,
       '& .MuiAlert-message': {
@@ -106,8 +118,8 @@ const ColorButton = styled(Box)(({ theme, color, active }) => ({
   cursor: 'pointer',
   marginLeft: theme.spacing(1), 
   backgroundColor: theme.palette[color].main,
-  outlineOffset: 1,
-  outline: active ? ('solid 2px ' + theme.palette[color].main) : 'none'
+  outlineOffset: 2,
+  outline: active ? ('solid 1px ' + theme.palette[color].contrastText) : 'none'
 }));
 
 const ViewPortButton = styled(Avatar)(({ theme, color, active }) => ({
@@ -131,20 +143,22 @@ const ViewPortButton = styled(Avatar)(({ theme, color, active }) => ({
 const TextBox = styled(TextField)(() => ({
   '& .MuiInputBase-input': {
     fontSize: '0.8rem',
-    lineHeight: 1.4
+    lineHeight: 1.4,
+    color: 'white'
   }
 }))
 
-// const RotateButton = styled(Button)(({ deg = 90 }) => ({
-//   '& .MuiButton-endIcon': {
-//     transition: 'transform 0.1s linear', 
-//     transform: `rotate(${deg}deg)`
-//   }
-// }))
+const RotateButton = styled(Button)(({ deg = 90 }) => ({
+  '& .MuiButton-endIcon': {
+    transition: 'transform 0.1s linear', 
+    transform: `rotate(${deg}deg)`
+  }
+}))
 
 const NoteContent = ({ 
   editing, 
   children, 
+  filled,
   severity, 
   viewports ,
   handleTextChange, 
@@ -186,7 +200,7 @@ const NoteContent = ({
   }
 
   // note content 
-  return <Typography sx={{lineHeight: 1}} variant="caption">{children}</Typography> 
+  return <Typography sx={{lineHeight: 1,  fontWeight: filled ? 600 : 400}} variant="caption">{children}</Typography> 
 }
 
 
@@ -198,6 +212,7 @@ export const Sticky = ({
     left, 
     pinned,
     children, 
+    filled,
     severity='info', 
     viewports=[],
     
@@ -229,8 +244,10 @@ export const Sticky = ({
     severity,
     pinned,
     top,
-    left
-  }), [ID, children, severity, rest, top, left, pinned]);
+    left,
+    viewports,
+    filled
+  }), [ID, children, severity, rest, top, left, filled, viewports, pinned]);
 
 
   const handlePositionChange = React.useCallback((coordX, coordY) => { 
@@ -322,36 +339,40 @@ export const Sticky = ({
     editing,
     severity, 
     viewports,
+    filled,
     handleTextChange, 
     handleColorChange ,
     handleViewPortChange
   };
+ 
 
   const buttonProps = {
     sx: {ml: 1},
     endIcon: <Icon />,
     size: 'small', 
     variant: 'contained',
-    color: editing ? 'error' : 'primary',   
+    color: editing ? 'error' : severity,   
     onClick: () => setInfo(state => ({...state, editing: !editing }))
   };
 
   return <>
-    <Note {...noteProps} ref={ref} > 
+    <Note {...noteProps} ref={ref} filled={filled}> 
       <NoteContent {...contentProps}>{children}</NoteContent>
       <Collapse sx={{textAlign: 'right'}} in={active || editing}>
         <Divider sx={{mt: 1, mb: 1}} />
-        <Button size="small" variant={pinned ? 'outlined' : 'text'} onClick={() => onChange({
+        <RotateButton 
+          size="small" 
+          deg={pinned ? 0 : -90} 
+          variant={pinned ? 'outlined' : 'text'}  
+          color="inherit" 
+          endIcon={<PushPin />}
+          onClick={() => onChange({
             ...getCurrentObject(),
             pinned: !pinned, 
-          }) } endIcon={<PushPin />}>{pinned ? 'unpin' : 'pin'}</Button>
-        <Button {...buttonProps}>{editing ? "close" : "edit"}   </Button>
-        {/* {editing && <RotateButton deg={deg} 
-          onClick={() => setInfo(state => ({...state, deg: (deg + 45) % 360 }))}
-        endIcon={<ExpandMore />}></RotateButton>}  */}
+          }) }>{pinned ? 'unpin' : 'pin'}</RotateButton>
+        <Button {...buttonProps}>{editing ? "close" : "edit"}</Button> 
       </Collapse>
     </Note>
-    
   </>
 }
 

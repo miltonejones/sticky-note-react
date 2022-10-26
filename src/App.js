@@ -21,47 +21,80 @@ import {
   AlignHorizontalLeft, 
   AlignVerticalTop, 
   KeyboardArrowDown, 
+  Settings,
   SelectAll,
   SpeakerNotes,
   SpeakerNotesOff } from '@mui/icons-material';
  
 
-const AlignButton = ({ onChange }) => {
-  const [anchorEl, setAnchorEl] = React.useState(null);
-  const open = Boolean(anchorEl);
-  const handleClick = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleClose = (direction) => {
-    setAnchorEl(null);
-    onChange && onChange(direction)
-  };
-  return <>
-  <Button
-      size="small" 
-      onClick={handleClick}
-      variant="contained" 
-      sx={{ mr: 1 }}
-      endIcon={<KeyboardArrowDown />}
-      >align</Button>
+  const AlignButton = ({ onChange }) => {
+    const [anchorEl, setAnchorEl] = React.useState(null);
+    const open = Boolean(anchorEl);
+    const handleClick = (event) => {
+      setAnchorEl(event.currentTarget);
+    };
+    const handleClose = (direction) => {
+      setAnchorEl(null);
+      onChange && onChange(direction)
+    };
+    return <>
+    <Button
+        size="small" 
+        onClick={handleClick}
+        variant="contained" 
+        sx={{ mr: 1 }}
+        endIcon={<KeyboardArrowDown />}
+        >align</Button>
+  
+    {/* alignment menu  */}
+    <Menu 
+      anchorEl={anchorEl}
+      open={open}
+      onClose={handleClose}>
+      <MenuItem onClick={() => handleClose('left')} disableRipple>
+        <AlignHorizontalLeft />
+        horizontal
+      </MenuItem>
+      <MenuItem onClick={() => handleClose('top')}  disableRipple>
+        <AlignVerticalTop />
+        vertical
+      </MenuItem>
+    </Menu>
+    </>
+  }
 
-  {/* alignment menu  */}
-  <Menu 
-    anchorEl={anchorEl}
-    open={open}
-    onClose={handleClose}>
-    <MenuItem onClick={() => handleClose('left')} disableRipple>
-      <AlignHorizontalLeft />
-      horizontal
-    </MenuItem>
-    <MenuItem onClick={() => handleClose('top')}  disableRipple>
-      <AlignVerticalTop />
-      vertical
-    </MenuItem>
-  </Menu>
-  </>
-}
-
+  const SettingsButton = ({ onChange, isFilled }) => {
+    const [anchorEl, setAnchorEl] = React.useState(null);
+    const open = Boolean(anchorEl);
+    const handleClick = (event) => {
+      setAnchorEl(event.currentTarget);
+    };
+    const handleClose = (filled) => {
+      setAnchorEl(null);
+      onChange && onChange(filled)
+    };
+    return <>
+    <IconButton
+        size="small" 
+        onClick={handleClick}
+        variant="contained" 
+        sx={{ mr: 1 }} 
+        ><Settings/></IconButton>
+   
+    <Menu 
+      anchorEl={anchorEl}
+      open={open}
+      onClose={handleClose}>
+      <MenuItem sx={{fontWeight: isFilled ? 600 : 400}} onClick={() => handleClose(true)} disableRipple> 
+        filled
+      </MenuItem>
+      <MenuItem sx={{fontWeight: !isFilled ? 600 : 400}} onClick={() => handleClose(false)}  disableRipple> 
+        outlined
+      </MenuItem>
+    </Menu>
+    </>
+  }
+    
 const SaveButton = styled(IconButton)(({ theme }) => ({
   backgroundColor: theme.palette.warning.light ,
   marginRight: theme.spacing(2),
@@ -82,12 +115,13 @@ const Text = styled(Button)(({ theme }) => ({
       display: 'none'
     }
   },
-}))
+}));
  
 
 function App() { 
   const [showNotes, setShowNotes] = React.useState(true); 
   const [notesOff, setNotesOff] = React.useState(true); 
+  const [filled, setFilled] = React.useState(false); 
   const sticky = useSticky('sticky-notes'); 
   const Icon = showNotes ? SpeakerNotesOff : SpeakerNotes;
   const Fold = !notesOff ? UnfoldLess : UnfoldMore;
@@ -100,6 +134,7 @@ function App() {
 
   const coordProp = note => ({
     ...note,
+    filled,
     left: showNotes ? note.left : -500,
     top: showNotes ? note.top : '50vh',
   })
@@ -150,9 +185,11 @@ function App() {
             <Fold />
           </LitButton>
 
+          <SettingsButton isFilled={filled} onChange={setFilled} />
+
         </Collapse>
 
-        <LitButton active={showNotes} sx={{mr: 2}} onClick={() => setShowNotes(!showNotes)}>
+        <LitButton active={showNotes} sx={{ml: 2}} onClick={() => setShowNotes(!showNotes)}>
           <Icon />
         </LitButton> 
 
